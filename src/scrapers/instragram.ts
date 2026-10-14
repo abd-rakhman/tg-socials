@@ -58,14 +58,19 @@ export class InstagramScraper implements IScraper {
 
 		// media_type: 1 = photo, 2 = video, 8 = carousel (several items)
 		const items = post.carousel_media ?? [post]
-		return items.map((m: any) =>
-			m.video_versions?.length
-				? {
-					type: 'video', url: m.video_versions[0].url
-				}
-				: {
-					type: 'photo', url:
-						m.image_versions2.candidates[0].url
-				})
+		return items.map((m: any) => {
+			if (!m.video_versions?.length) {
+				return { type: 'photo', url: m.image_versions2.candidates[0].url }
+			}
+			// smallest version: plays faster in Telegram
+			const v = m.video_versions.reduce((a: any, b: any) => (b.width < a.width ? b : a))
+			return {
+				type: 'video',
+				url: v.url,
+				width: v.width,
+				height: v.height,
+				duration: Math.round(m.video_duration ?? 0) || undefined,
+			}
+		})
 	}
 }

@@ -47,6 +47,12 @@ bot.on(message('text'), async (ctx) => {
 						source: Buffer.from(await fetch(media.url, { headers: media.headers }).then((r) => r.arrayBuffer()) as ArrayBuffer),
 						filename: media.type === 'video' ? 'video.mp4' : 'photo.jpg',
 					},
+					...(media.type === 'video' && {
+						supports_streaming: true,
+						width: media.width,
+						height: media.height,
+						duration: media.duration,
+					}),
 				}))
 			)
 			if (group.length == 0) return;
