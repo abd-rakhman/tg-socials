@@ -5,4 +5,5 @@ export interface Media {
 	width?: number;
 	height?: number;
 	duration?: number;
+	thumbnail?: string;
 }

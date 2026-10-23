@@ -64,12 +64,15 @@ export class InstagramScraper implements IScraper {
 			}
 			// smallest version: plays faster in Telegram
 			const v = m.video_versions.reduce((a: any, b: any) => (b.width < a.width ? b : a))
+			// smallest cover: Telegram wants thumbnails up to 320px
+			const cover = m.image_versions2?.candidates?.reduce((a: any, b: any) => (b.width < a.width ? b : a))
 			return {
 				type: 'video',
 				url: v.url,
 				width: v.width,
 				height: v.height,
 				duration: Math.round(m.video_duration ?? 0) || undefined,
+				thumbnail: cover?.url,
 			}
 		})
 	}

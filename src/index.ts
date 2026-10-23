@@ -10,6 +10,22 @@ const scraper = new Scraper();
 
 bot.telegram.setWebhook(`${env.API_URL}/webhook`)
 
+const download = async (url: string, headers?: Record<string, string>): Promise<Buffer> => {
+	return Buffer.from(await fetch(url, { headers }).then((r) => r.arrayBuffer()) as ArrayBuffer)
+}
+
+// thumbnail is optional: on failure send the video without it
+const downloadThumbnail = async (url?: string, headers?: Record<string, string>) => {
+	if (!url) return undefined
+	const res = await fetch(url, { headers }).catch((e) => {
+		console.error(url, e)
+		return null
+	})
+	if (!res?.ok) return undefined
+	const source = await res.arrayBuffer().then((b) => Buffer.from(b)).catch(() => null)
+	return source ? { source, filename: 'thumbnail.jpg' } : undefined
+}
+
 const isEligibleUser = async (ctx: any): Promise<boolean> => {
 	const userIds = env.USER_IDS ?? [];
 	if (userIds.length == 0) return true;
@@ -44,7 +60,7 @@ bot.on(message('text'), async (ctx) => {
 				medias.slice(i, i + 10).map(async (media) => ({
 					type: media.type,
 					media: {
-						source: Buffer.from(await fetch(media.url, { headers: media.headers }).then((r) => r.arrayBuffer()) as ArrayBuffer),
+						source: await download(media.url, media.headers),
 						filename: media.type === 'video' ? 'video.mp4' : 'photo.jpg',
 					},
 					...(media.type === 'video' && {
@@ -52,6 +68,7 @@ bot.on(message('text'), async (ctx) => {
 						width: media.width,
 						height: media.height,
 						duration: media.duration,
+						thumbnail: await downloadThumbnail(media.thumbnail, media.headers),
 					}),
 				}))
 			)

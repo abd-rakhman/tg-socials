@@ -55,6 +55,7 @@ export class TiktokScraper implements IScraper {
 			width: post.video.width,
 			height: post.video.height,
 			duration: post.video.duration,
+			thumbnail: post.video.cover,
 		}];
 	}
 }
