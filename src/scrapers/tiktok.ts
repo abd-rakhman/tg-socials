@@ -47,7 +47,7 @@ export class TiktokScraper implements IScraper {
 			}));
 		}
 
-		if (post.video.size > 40 * MB) throw Error(`Tiktok: video size is too large: ${post.video.size}`);
+		if (post.video.size > 300 * MB) throw Error(`Tiktok: video size is too large: ${post.video.size}`);
 		return [{
 			type: 'video',
 			url: post.video.playAddr,

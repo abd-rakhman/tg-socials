@@ -1,3 +1,10 @@
+import { execFile } from 'node:child_process'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
+import { waitUntil } from '@vercel/functions'
+import ffmpegPath from 'ffmpeg-static'
 import { Hono } from 'hono'
 import { Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
@@ -9,9 +16,36 @@ const bot = new Telegraf(env.BOT_TOKEN);
 const scraper = new Scraper();
 
 bot.telegram.setWebhook(`${env.API_URL}/webhook`)
+bot.catch((e) => console.error(e))
 
 const download = async (url: string, headers?: Record<string, string>): Promise<Buffer> => {
 	return Buffer.from(await fetch(url, { headers }).then((r) => r.arrayBuffer()) as ArrayBuffer)
+}
+
+const MB = 1000 * 1000
+const compress = async (video: Buffer, duration?: number): Promise<Buffer> => {
+	if (video.length > 300 * MB) throw new Error(`video size is too large: ${video.length}`)
+	if (video.length <= 10 * MB) return video
+	const dir = await mkdtemp(join(tmpdir(), 'video-'))
+	const input = join(dir, 'in.mp4'), output = join(dir, 'out.mp4')
+	try {
+		await writeFile(input, video)
+		const kbps = duration ? Math.floor(45 * 8000 / duration) - 128 : 0
+		await promisify(execFile)(ffmpegPath as unknown as string, [
+			'-v', 'fatal', '-max_error_rate', '1', '-y', '-i', input,
+			'-fpsmax', '30',
+			'-vf', 'scale=1280:1280:force_original_aspect_ratio=decrease:force_divisible_by=2',
+			'-c:v', 'libx264', '-preset', 'veryfast',
+			'-crf', '28',
+			...(kbps > 0 ? ['-maxrate', `${kbps}k`, '-bufsize', `${kbps * 2}k`] : []),
+			'-c:a', 'aac', '-b:a', '128k',
+			'-movflags', '+faststart',
+			output,
+		])
+		return await readFile(output)
+	} finally {
+		await rm(dir, { recursive: true, force: true })
+	}
 }
 
 // thumbnail is optional: on failure send the video without it
@@ -60,7 +94,9 @@ bot.on(message('text'), async (ctx) => {
 				medias.slice(i, i + 10).map(async (media) => ({
 					type: media.type,
 					media: {
-						source: await download(media.url, media.headers),
+						source: media.type === 'video'
+							? await compress(await download(media.url, media.headers), media.duration)
+							: await download(media.url, media.headers),
 						filename: media.type === 'video' ? 'video.mp4' : 'photo.jpg',
 					},
 					...(media.type === 'video' && {
@@ -95,7 +131,7 @@ app.get('/', (c) => {
 app.post('/webhook', async (c) => {
 	const update = await c.req.json()
 
-	await bot.handleUpdate(update)
+	waitUntil(bot.handleUpdate(update).catch((e) => console.error(e)))
 
 	return c.json({ ok: true })
 })
