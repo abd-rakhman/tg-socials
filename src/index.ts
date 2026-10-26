@@ -77,9 +77,8 @@ bot.on(message('text'), async (ctx) => {
 				ctx.chat.id,
 				group,
 				{
-					reply_parameters: {
-						message_id: ctx.msg.message_id
-					}
+					// telegraf only JSON-encodes known fields in multipart uploads, and reply_parameters isn't one
+					reply_parameters: JSON.stringify({ message_id: ctx.msg.message_id }) as any,
 				},
 			);
 		}
