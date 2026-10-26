@@ -12,7 +12,7 @@ import { env } from './env.js'
 import { Scraper } from './scrapers/scraper.js'
 
 const app = new Hono()
-const bot = new Telegraf(env.BOT_TOKEN);
+const bot = new Telegraf(env.BOT_TOKEN, { handlerTimeout: 3 * 60 * 1000 });
 const scraper = new Scraper();
 
 bot.telegram.setWebhook(`${env.API_URL}/webhook`)
