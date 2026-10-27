@@ -9,4 +9,5 @@ export const env = z.object({
 		.transform((val) => val?.split(",").map((s) => parseInt(s.trim()))),
 
 	USER_AGENT: z.string().optional(),
+	INVIDIOUS_URL: z.url().optional(),
 }).parse(process.env)
