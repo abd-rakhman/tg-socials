@@ -110,8 +110,10 @@ export class YoutubeScraper implements IScraper {
 		const v = formats
 			.filter((f) => f.url && f.mimeType.startsWith('video/mp4; codecs="avc1') && f.width && f.height && Math.min(f.width, f.height) <= 720)
 			.reduce<Format | null>((a, b) => (!a || b.width! * b.height! > a.width! * a.height! ? b : a), null)
-		const a = formats
-			.filter((f) => f.url && f.mimeType.startsWith('audio/mp4'))
+		// videos with auto-dubs have one audio track per language, the original one is tagged in the URL: xtags=acont=original:lang=en-US
+		const audios = formats.filter((f) => f.url && f.mimeType.startsWith('audio/mp4'))
+		const originals = audios.filter((f) => new URL(f.url, INVIDIOUS_URL).searchParams.get('xtags')?.includes('acont=original'))
+		const a = (originals.length ? originals : audios)
 			.reduce<Format | null>((a, b) => (!a || b.bitrate > a.bitrate ? b : a), null)
 		if (!v) throw new Error(`Youtube: no mp4 video`);
 
