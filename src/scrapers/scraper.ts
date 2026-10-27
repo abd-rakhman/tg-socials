@@ -1,6 +1,7 @@
 import { Media } from "../types/media.js";
 import { InstagramScraper } from "./instragram.js";
 import { TiktokScraper } from "./tiktok.js";
+import { YoutubeScraper } from "./youtube.js";
 
 export interface IScraper {
 	isScrapable(url: string): boolean;
@@ -11,6 +12,7 @@ export class Scraper implements IScraper {
 	scrapers: Array<IScraper> = [
 		new InstagramScraper(),
 		new TiktokScraper(),
+		new YoutubeScraper(),
 	];
 
 	isScrapable(url: string): boolean {

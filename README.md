@@ -1,6 +1,6 @@
 # tg-socials
 
-Telegram bot that downloads media from Instagram and TikTok links and sends it to the chat.
+Telegram bot that downloads media from Instagram, TikTok, and YouTube Shorts links and sends it to the chat.
 
 ## Features
 
@@ -13,4 +13,4 @@ Telegram bot that downloads media from Instagram and TikTok links and sends it t
 ## Why not ...?
 
 - **Twitter / X:** Replace `x.com` with `fixupx.com` in the link. Telegram then shows the full tweet with its text, photos, and video.
-- **YouTube:** Telegram already plays YouTube links in the chat. Also, YouTube blocks cloud providers suspicious IP addresses, including Vercels'.
+- **Long YouTube videos:** Telegram already plays YouTube links in the chat. Only Shorts are supported. YouTube may block cloud IP addresses, including Vercel's.

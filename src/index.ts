@@ -10,6 +10,7 @@ import { Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 import { env } from './env.js'
 import { Scraper } from './scrapers/scraper.js'
+import { Media } from './types/media.js'
 
 const app = new Hono()
 const bot = new Telegraf(env.BOT_TOKEN, { handlerTimeout: 3 * 60 * 1000 });
@@ -46,6 +47,34 @@ const compress = async (video: Buffer, duration?: number): Promise<Buffer> => {
 	} finally {
 		await rm(dir, { recursive: true, force: true })
 	}
+}
+
+// joins separate video and audio tracks without re-encoding
+const mergeVideoAndAudio = async (video: Buffer, audio: Buffer): Promise<Buffer> => {
+	const dir = await mkdtemp(join(tmpdir(), 'merge-'))
+	const videoPath = join(dir, 'video.mp4'), audioPath = join(dir, 'audio.m4a'), output = join(dir, 'out.mp4')
+	try {
+		await writeFile(videoPath, video)
+		await writeFile(audioPath, audio)
+		await promisify(execFile)(ffmpegPath as unknown as string, [
+			'-v', 'fatal', '-y', '-i', videoPath, '-i', audioPath,
+			'-map', '0:v:0', '-map', '1:a:0', '-c', 'copy',
+			'-movflags', '+faststart',
+			output,
+		])
+		return await readFile(output)
+	} finally {
+		await rm(dir, { recursive: true, force: true })
+	}
+}
+
+// downloads video (+ separate audio track if any), merges them, compresses if too big
+const downloadAndPrepareVideo = async (media: Media): Promise<Buffer> => {
+	const [video, audio] = await Promise.all([
+		download(media.url, media.headers),
+		media.audioUrl ? download(media.audioUrl, media.headers) : undefined,
+	])
+	return compress(audio ? await mergeVideoAndAudio(video, audio) : video, media.duration)
 }
 
 // thumbnail is optional: on failure send the video without it
@@ -95,7 +124,7 @@ bot.on(message('text'), async (ctx) => {
 					type: media.type,
 					media: {
 						source: media.type === 'video'
-							? await compress(await download(media.url, media.headers), media.duration)
+							? await downloadAndPrepareVideo(media)
 							: await download(media.url, media.headers),
 						filename: media.type === 'video' ? 'video.mp4' : 'photo.jpg',
 					},
