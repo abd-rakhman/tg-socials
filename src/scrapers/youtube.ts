@@ -2,8 +2,8 @@ import { env } from "../env.js";
 import { Media } from "../types/media.js";
 import { IScraper } from "./scraper.js";
 
-// iOS app client: returns direct stream URLs without a login
-const UA = 'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)'
+// yt-dlp pattern: visionOS app client, its stream URLs download without a token
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15'
 // YouTube blocks cloud IPs (Vercel), so then we ask an Invidious server, it fetches and streams the video for us
 const INVIDIOUS_URL = env.INVIDIOUS_URL ?? 'https://yt.chocolatemoo53.com'
 const MB = 1000 * 1000;
@@ -49,9 +49,8 @@ export class YoutubeScraper implements IScraper {
 				videoId: id,
 				context: {
 					client: {
-						clientName: 'IOS',
-						clientVersion: '20.10.4',
-						deviceModel: 'iPhone16,2',
+						clientName: 'VISIONOS',
+						clientVersion: '1.02',
 						hl: 'en',
 					},
 				},

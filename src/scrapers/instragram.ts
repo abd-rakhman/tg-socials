@@ -1,8 +1,8 @@
-import { env } from "../env.js";
 import { Media } from "../types/media.js";
 import { IScraper } from "./scraper.js";
 
-const UA = env.USER_AGENT ?? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+// yt-dlp pattern: the post code is the media id in base 64 with this alphabet
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
 
 export class InstagramScraper implements IScraper {
 	domains = ['instagram.com', 'www.instagram.com']
@@ -23,36 +23,25 @@ export class InstagramScraper implements IScraper {
 	async scrape(url: string): Promise<Array<Media>> {
 		const code = this.parseCodeFromURL(url);
 		if (!code) throw Error(`Instagram: invalid URL: {url}`)
-		const home = await fetch('https://www.instagram.com/', {
-			headers: {
-				'User-Agent': UA
-			}
-		});
-		const csrf = home.headers.getSetCookie()
-			.join(';')
-			.match(/csrftoken=([^;]+)/)?.[1] ?? '';
+		const id = [...code].reduce((n, c) => n * 64n + BigInt(ALPHABET.indexOf(c)), 0n);
 
-		const res = await fetch('https://www.instagram.com/graphql/query', {
+		// yt-dlp pattern: the logged-out post query, it needs the LSD token from the home page
+		const home = await fetch('https://www.instagram.com/');
+		const lsd = (await home.text()).match(/"LSD",\[\],\{"token":"([^"]+)"/)?.[1] ?? '';
+		const res = await fetch('https://www.instagram.com/api/graphql', {
 			method: 'POST',
 			headers: {
-				'User-Agent': UA,
-				'X-IG-App-ID': '936619743392459',
-				'X-CSRFToken': csrf,
-				'Cookie': `csrftoken=${csrf}`,
-				'Referer': 'https://www.instagram.com/',
+				'X-FB-LSD': lsd,
 			},
 			body: new URLSearchParams({
-				doc_id: '27128499623469141',
-				variables: JSON.stringify({
-					shortcode: code,
-					__relay_internal__pv__PolarisAIGMMediaWebLabelEnabledrelayprovider: false,
-				}),
-				server_timestamps: 'true',
+				lsd,
+				doc_id: '27130156389949648',
+				variables: JSON.stringify({ media_id: id.toString() }),
 			}),
 		})
 
 		const json: any = await res.json()
-		const post = json.data?.xdt_api__v1__media__shortcode__web_info?.items?.[0]
+		const post = json.data?.xig_polaris_media?.if_not_gated_logged_out
 
 		if (!post) throw new Error(`Instagram: no post (${res.status})`);
 
@@ -69,8 +58,8 @@ export class InstagramScraper implements IScraper {
 			return {
 				type: 'video',
 				url: v.url,
-				width: v.width,
-				height: v.height,
+				width: v.width ?? m.original_width,
+				height: v.height ?? m.original_height,
 				duration: Math.round(m.video_duration ?? 0) || undefined,
 				thumbnail: cover?.url,
 			}
